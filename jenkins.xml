@@ -1,0 +1,169 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>Build and test a meteor app</description>
+  <logRotator>
+    <daysToKeep>60</daysToKeep>
+    <numToKeep>-1</numToKeep>
+    <artifactDaysToKeep>-1</artifactDaysToKeep>
+    <artifactNumToKeep>20</artifactNumToKeep>
+  </logRotator>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <nectar.plugins.rbac.groups.JobProxyGroupContainer>
+      <groups/>
+    </nectar.plugins.rbac.groups.JobProxyGroupContainer>
+    <com.cloudbees.jenkins.plugins.PublicKey/>
+    <com.cloudbees.plugins.deployer.DeployNowJobProperty>
+      <oneClickDeploy>false</oneClickDeploy>
+      <configuration>
+        <user>(jenkins)</user>
+        <account>${account}</account>
+        <deployables/>
+      </configuration>
+    </com.cloudbees.plugins.deployer.DeployNowJobProperty>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <name></name>
+        <refspec></refspec>
+        <url>${repositoryUrl}</url>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>**</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <disableSubmodules>false</disableSubmodules>
+    <recursiveSubmodules>false</recursiveSubmodules>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <authorOrCommitter>false</authorOrCommitter>
+    <clean>false</clean>
+    <wipeOutWorkspace>false</wipeOutWorkspace>
+    <pruneBranches>false</pruneBranches>
+    <remotePoll>false</remotePoll>
+    <ignoreNotifyCommit>false</ignoreNotifyCommit>
+    <useShallowClone>false</useShallowClone>
+    <buildChooser class="hudson.plugins.git.util.DefaultBuildChooser"/>
+    <gitTool>Default</gitTool>
+    <submoduleCfg class="list"/>
+    <relativeTargetDir></relativeTargetDir>
+    <reference></reference>
+    <excludedRegions></excludedRegions>
+    <excludedUsers></excludedUsers>
+    <gitConfigName></gitConfigName>
+    <gitConfigEmail></gitConfigEmail>
+    <skipTag>false</skipTag>
+    <includedRegions></includedRegions>
+    <scmName></scmName>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <jdk>(Default)</jdk>
+  <triggers class="vector">
+    <com.cloudbees.jenkins.forge.ForgePushTrigger>
+      <spec></spec>
+    </com.cloudbees.jenkins.forge.ForgePushTrigger>
+  </triggers>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>export DISPLAY=:1
+Xvfb :1 &amp;
+
+#
+# Fetch and install the dependencies
+#
+
+node_version=v0.8.21
+install_name=node-$node_version-linux-x64
+node_home=$PWD/$install_name
+
+if [ ! -e $install_name.tar.gz ]
+then
+    wget -nv http://nodejs.org/dist/$node_version/$install_name.tar.gz
+    tar xf $install_name.tar.gz
+    wget -nv https://s3.amazonaws.com/cloudbees-downloads/clickstart/meteor-0.2.19.tar.gz
+    tar xf meteor-0.2.19.tar.gz
+    meteor/meteor --version
+    cd tests
+    wget -nv https://s3.amazonaws.com/cloudbees-downloads/clickstart/webspecter.tar.gz
+    tar xf webspecter.tar.gz
+    $node_home/bin/npm install phantomjs
+fi
+
+
+#
+# run the Integration tests (this requires a server running, and selenium wd)
+#
+
+
+
+# Start meteor app
+
+cd $WORKSPACE/todos
+$WORKSPACE/meteor/meteor &amp;
+METEOR_PID=$!
+sleep 5
+
+
+
+# run integration tests and shutdown
+cd $WORKSPACE/tests
+PATH=$PATH:node_modules/phantomjs/bin
+PATH=$PATH:$node_home/bin
+PATH=$PATH:webspecter/bin
+webspecter -R xunit integration.coffee &gt; $WORKSPACE/test.out.xml
+kill -s TERM $METEOR_PID
+
+
+
+#
+# Meteor bundle and rezip for cloudbees
+# 
+
+cd $WORKSPACE
+rm -rf bundle bundle.tar.gz
+cd todos
+$WORKSPACE/meteor/meteor bundle ../bundle.tar.gz
+
+cd $WORKSPACE
+tar xf bundle.tar.gz
+cd bundle
+sed -i -e 's/MONGO_URL/MONGOHQ_URL_METEOR/g' server/server.js
+rm -rf ../target
+mkdir -p ../target
+rm -rf ../target/app.zip
+zip -rq ../target/app.zip *</command>
+    </hudson.tasks.Shell>
+
+    <com.cloudbees.plugins.deployer.DeployBuilder>
+      <configuration>
+        <user>(jenkins)</user>
+        <account>${account}</account>
+        <deployables>
+          <com.cloudbees.plugins.deployer.deployables.WildcardMatchingDeployable>
+            <applicationId>${applicationName}</applicationId>
+            <applicationEnvironment></applicationEnvironment>
+            <applicationConfig/>
+            <apiEndPoint>https://api.cloudbees.com/api</apiEndPoint>
+            <filePattern>target/*.zip</filePattern>
+          </com.cloudbees.plugins.deployer.deployables.WildcardMatchingDeployable>
+        </deployables>
+      </configuration>
+    </com.cloudbees.plugins.deployer.DeployBuilder>
+  </builders>
+  <publishers>
+    <hudson.tasks.junit.JUnitResultArchiver>
+      <testResults>test.out.xml</testResults>
+      <keepLongStdio>false</keepLongStdio>
+      <testDataPublishers/>
+    </hudson.tasks.junit.JUnitResultArchiver>
+  </publishers>
+  <buildWrappers/>
+</project>

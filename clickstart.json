@@ -1,0 +1,46 @@
+{
+    "id": "meteor-clickstart",
+    "name": "Meteor with MongoDB",
+    "source": "github",
+    "description" : "Realtime JS app, client and server, phantomjs automated test and MongoDB backend",
+    "icon" : "https://s3.amazonaws.com/cloudbees-downloads/clickstart/meteor.png",    
+    "doc-url" : "https://github.com/CloudBees-community/meteor-clickstart",
+    "disabled" : false,
+
+    "supported-by" : "community",
+    "order" : 2,
+
+    "runtime": {
+        "type": "nodejs",
+         "app-parameters" : { 
+            "runtime.PLUGIN.SRC.nodejs": "https://s3.amazonaws.com/cloudbees-downloads/nodejs-plugin-0.8.24.zip"
+        },
+        "app-variables" : {
+            "MONGO_URL" : "$MONGOHQ_URL_METEOR"
+        }
+    },
+        
+    
+   "services" : [
+     {
+      "name" : "mongohq",
+      "plan" : "base",
+      "settings" : {},
+         "resources" : [
+            {
+                "type" : "mongodb",
+                "alias" : "METEOR",
+                "settings" : { "plan" : "sandbox" }
+            }
+         ]
+     }     
+     ],    
+    
+    "build-with-jenkins": {
+    "template": {
+            "type": "https://raw.github.com/CloudBees-community/meteor-clickstart/master/jenkins.xml",
+            "options": {
+            }            
+        }
+    }
+}
